@@ -1,9 +1,15 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from "react";
 import { Amplify, Auth } from "aws-amplify";
 import { jwtDecode } from "jwt-decode";
-import { awsConfig } from "../awsConfig.js";
-
-Amplify.configure({ Auth: awsConfig });
+import { getAwsConfig } from "../awsConfig.js";
 
 const AuthContext = createContext();
 
@@ -22,10 +28,40 @@ export function AuthProvider({ children }) {
   const [tokens, setTokens] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [amplifyReady, setAmplifyReady] = useState(false);
+  const configurePromiseRef = useRef(null);
+
+  const ensureAmplify = useCallback(async () => {
+    if (amplifyReady) {
+      return;
+    }
+
+    if (!configurePromiseRef.current) {
+      configurePromiseRef.current = (async () => {
+        try {
+          const config = await getAwsConfig();
+          Amplify.configure(config);
+          if (config.Auth) {
+            Auth.configure(config.Auth);
+          }
+          setAmplifyReady(true);
+        } catch (err) {
+          console.error("Failed to configure Amplify", err);
+          setError(err);
+          throw err;
+        } finally {
+          configurePromiseRef.current = null;
+        }
+      })();
+    }
+
+    return configurePromiseRef.current;
+  }, [amplifyReady]);
 
   useEffect(() => {
     const bootstrap = async () => {
       try {
+        await ensureAmplify();
         const session = await Auth.currentSession();
         const currentUser = await Auth.currentAuthenticatedUser();
         const idToken = session.getIdToken().getJwtToken();
@@ -38,16 +74,20 @@ export function AuthProvider({ children }) {
       } catch (err) {
         setUser(null);
         setTokens(null);
+        if (err?.message && err.message !== "No current user") {
+          console.error("Failed to restore user session", err);
+        }
       } finally {
         setLoading(false);
       }
     };
 
     bootstrap();
-  }, []);
+  }, [ensureAmplify]);
 
   const signIn = async (username, password) => {
     setError(null);
+    await ensureAmplify();
     await Auth.signIn({ username, password });
     const session = await Auth.currentSession();
     const currentUser = await Auth.currentAuthenticatedUser();
@@ -62,6 +102,7 @@ export function AuthProvider({ children }) {
 
   const signUp = async ({ username, password, email }) => {
     setError(null);
+    await ensureAmplify();
     return Auth.signUp({
       username,
       password,
@@ -69,9 +110,13 @@ export function AuthProvider({ children }) {
     });
   };
 
-  const confirmSignUp = (username, code) => Auth.confirmSignUp(username, code);
+  const confirmSignUp = async (username, code) => {
+    await ensureAmplify();
+    return Auth.confirmSignUp(username, code);
+  };
 
   const signOut = async () => {
+    await ensureAmplify();
     await Auth.signOut();
     setUser(null);
     setTokens(null);

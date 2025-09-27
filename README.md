@@ -91,7 +91,62 @@ Build a full-stack Cloud-Native Video Web Application for deployment on AWS, wit
   2. `docker build/tag/push` backend + frontend images.
   3. On EC2: `docker-compose up -d`.
 
+## Project Structure
+
+- `server/` – Express API that exposes `/videos` endpoints, reads configuration from AWS Systems Manager Parameter Store and Secrets Manager, and integrates with Cognito, DynamoDB, and S3.
+- `client/` – Vite + React single-page app that authenticates with Cognito using Amplify, uploads directly to S3 using presigned URLs, and manages playback/deletion workflows.
+- `proxy/` – nginx reverse proxy that exposes the React UI at `/` and forwards `/api` to the backend service.
+- `docker-compose.yml` – Orchestrates the three containers and tags images for the provided Amazon ECR repositories.
+
+## Local Development
+
+### Backend
+
+```bash
+cd server
+npm install
+npm run dev
+```
+
+Set AWS credentials in your environment so the API can fetch Parameter Store and Secrets Manager values. The service listens on `http://localhost:4000`.
+
+### Frontend
+
+```bash
+cd client
+cp .env.example .env
+# populate Cognito values from Parameter Store
+npm install
+npm run dev
+```
+
+The Vite dev server runs on `http://localhost:5173` and proxies API calls to the domain configured in `VITE_API_URL`.
+
+## Docker & Deployment
+
+1. Authenticate to AWS: `aws sso login --profile n11817143-a2`.
+2. Build and push the images:
+
+   ```bash
+   docker build -t 901444280953.dkr.ecr.ap-southeast-2.amazonaws.com/n11817143-a2-backend:latest ./server
+   docker build -t 901444280953.dkr.ecr.ap-southeast-2.amazonaws.com/n11817143-a2-frontend:latest ./client
+   aws ecr get-login-password --region ap-southeast-2 --profile n11817143-a2 | \
+     docker login --username AWS --password-stdin 901444280953.dkr.ecr.ap-southeast-2.amazonaws.com
+   docker push 901444280953.dkr.ecr.ap-southeast-2.amazonaws.com/n11817143-a2-backend:latest
+   docker push 901444280953.dkr.ecr.ap-southeast-2.amazonaws.com/n11817143-a2-frontend:latest
+   ```
+
+3. On the EC2 instance (`ec2-16-176-178-164.ap-southeast-2.compute.amazonaws.com`):
+
+   ```bash
+   docker-compose pull
+   docker-compose up -d
+   ```
+
+The proxy container publishes port 80 and serves the React SPA while forwarding `/api/*` to the backend service.
+
 ## Requirements
+
 - Generate complete backend code (`server/`) and frontend code (`client/`).
 - Include Dockerfiles for both.
 - Include `docker-compose.yml`.

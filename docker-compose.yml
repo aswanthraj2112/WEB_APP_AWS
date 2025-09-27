@@ -6,11 +6,11 @@ services:
     image: 901444280953.dkr.ecr.ap-southeast-2.amazonaws.com/n11817143-a2-backend:latest
     environment:
       - NODE_ENV=production
-      - PORT=4000
+      - PORT=8080
       - AWS_REGION=ap-southeast-2
       - APP_SECRET_NAME=n11817143-a2-secret
     expose:
-      - "4000"
+      - "8080"
 
   frontend:
     build:

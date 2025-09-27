@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL;
+import { getApiBaseUrl } from "../config";
+
+const API_URL = getApiBaseUrl();
 
 async function resolveTokens(tokensOrProvider) {
   if (typeof tokensOrProvider === "function") {

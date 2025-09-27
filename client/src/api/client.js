@@ -1,5 +1,12 @@
 const API_URL = import.meta.env.VITE_API_URL;
 
+async function resolveTokens(tokensOrProvider) {
+  if (typeof tokensOrProvider === "function") {
+    return tokensOrProvider();
+  }
+  return tokensOrProvider;
+}
+
 function buildHeaders(tokens, extra = {}) {
   const headers = {
     "Content-Type": "application/json",
@@ -30,6 +37,7 @@ async function handleResponse(response) {
 }
 
 export async function createVideo({ title, file, tokens }) {
+  const resolvedTokens = await resolveTokens(tokens);
   const body = {
     title,
     filename: file.name,
@@ -39,7 +47,7 @@ export async function createVideo({ title, file, tokens }) {
 
   const response = await fetch(`${API_URL}/videos`, {
     method: "POST",
-    headers: buildHeaders(tokens),
+    headers: buildHeaders(resolvedTokens),
     body: JSON.stringify(body)
   });
 
@@ -61,25 +69,28 @@ export async function uploadToS3(uploadUrl, file) {
 }
 
 export async function listVideos(tokens, params = {}) {
+  const resolvedTokens = await resolveTokens(tokens);
   const search = new URLSearchParams(params).toString();
   const url = search ? `${API_URL}/videos?${search}` : `${API_URL}/videos`;
   const response = await fetch(url, {
-    headers: buildHeaders(tokens)
+    headers: buildHeaders(resolvedTokens)
   });
   return handleResponse(response);
 }
 
 export async function getVideo(id, tokens) {
+  const resolvedTokens = await resolveTokens(tokens);
   const response = await fetch(`${API_URL}/videos/${id}`, {
-    headers: buildHeaders(tokens)
+    headers: buildHeaders(resolvedTokens)
   });
   return handleResponse(response);
 }
 
 export async function deleteVideo(id, tokens) {
+  const resolvedTokens = await resolveTokens(tokens);
   const response = await fetch(`${API_URL}/videos/${id}`, {
     method: "DELETE",
-    headers: buildHeaders(tokens)
+    headers: buildHeaders(resolvedTokens)
   });
   return handleResponse(response);
 }

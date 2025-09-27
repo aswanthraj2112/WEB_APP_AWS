@@ -4,7 +4,7 @@ import { Toast } from "../components/Toast.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 export function AdminPage() {
-  const { tokens, groups } = useAuth();
+  const { tokens, groups, refreshTokens } = useAuth();
   const isAdmin = groups.includes("admins");
   const [videos, setVideos] = useState([]);
   const [error, setError] = useState("");
@@ -14,7 +14,7 @@ export function AdminPage() {
     if (!isAdmin) return;
     const load = async () => {
       try {
-        const data = await listVideos(tokens, { scope: "all" });
+        const data = await listVideos(refreshTokens, { scope: "all" });
         setVideos(data.items || []);
       } catch (err) {
         setError(err.message);
@@ -22,12 +22,12 @@ export function AdminPage() {
     };
 
     load();
-  }, [tokens, isAdmin]);
+  }, [tokens, isAdmin, refreshTokens]);
 
   const handleDelete = async (videoId) => {
     if (!window.confirm("Delete this video and all related assets?")) return;
     try {
-      await deleteVideo(videoId, tokens);
+      await deleteVideo(videoId, refreshTokens);
       setVideos((prev) => prev.filter((video) => video.videoId !== videoId));
       setMessage("Video deleted successfully");
     } catch (err) {

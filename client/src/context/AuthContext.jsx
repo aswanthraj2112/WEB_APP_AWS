@@ -58,22 +58,35 @@ export function AuthProvider({ children }) {
     return configurePromiseRef.current;
   }, [amplifyReady]);
 
+  const refreshTokens = useCallback(async () => {
+    try {
+      await ensureAmplify();
+      const session = await Auth.currentSession();
+      const currentUser = await Auth.currentAuthenticatedUser();
+      const idToken = session.getIdToken().getJwtToken();
+      const accessToken = session.getAccessToken().getJwtToken();
+      const nextTokens = { idToken, accessToken };
+      setTokens(nextTokens);
+      setUser({
+        username: currentUser.getUsername(),
+        attributes: currentUser.attributes
+      });
+      return nextTokens;
+    } catch (err) {
+      setUser(null);
+      setTokens(null);
+      if (err?.message && err.message !== "No current user") {
+        console.error("Failed to refresh auth tokens", err);
+      }
+      throw err;
+    }
+  }, [ensureAmplify]);
+
   useEffect(() => {
     const bootstrap = async () => {
       try {
-        await ensureAmplify();
-        const session = await Auth.currentSession();
-        const currentUser = await Auth.currentAuthenticatedUser();
-        const idToken = session.getIdToken().getJwtToken();
-        const accessToken = session.getAccessToken().getJwtToken();
-        setTokens({ idToken, accessToken });
-        setUser({
-          username: currentUser.getUsername(),
-          attributes: currentUser.attributes
-        });
+        await refreshTokens();
       } catch (err) {
-        setUser(null);
-        setTokens(null);
         if (err?.message && err.message !== "No current user") {
           console.error("Failed to restore user session", err);
         }
@@ -83,21 +96,13 @@ export function AuthProvider({ children }) {
     };
 
     bootstrap();
-  }, [ensureAmplify]);
+  }, [refreshTokens]);
 
   const signIn = async (username, password) => {
     setError(null);
     await ensureAmplify();
     await Auth.signIn({ username, password });
-    const session = await Auth.currentSession();
-    const currentUser = await Auth.currentAuthenticatedUser();
-    const idToken = session.getIdToken().getJwtToken();
-    const accessToken = session.getAccessToken().getJwtToken();
-    setTokens({ idToken, accessToken });
-    setUser({
-      username: currentUser.getUsername(),
-      attributes: currentUser.attributes
-    });
+    await refreshTokens();
   };
 
   const signUp = async ({ username, password, email }) => {
@@ -132,12 +137,13 @@ export function AuthProvider({ children }) {
       error,
       groups,
       signIn,
+      refreshTokens,
       signOut,
       signUp,
       confirmSignUp,
       setError
     }),
-    [user, tokens, loading, error, groups]
+    [user, tokens, loading, error, groups, refreshTokens]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

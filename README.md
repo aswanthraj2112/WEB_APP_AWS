@@ -28,6 +28,54 @@ Cloud-native video management platform deployed on AWS for CAB432 Assignment 2. 
 - **DNS Sync**: ✅ Managed by `/usr/local/bin/check-and-fix-dns.sh`
 - **Fix**: DNS mismatches resolved by switching to a CNAME that targets the EC2 public DNS. Auto-heal script with cron enforces the mapping hourly.
 
+#### Manual Elastic IP + DNS update
+
+When a static IP is required (for example, to terminate an SSL certificate or to remove the dependency on the instance public DNS name), follow the steps below. Ensure your AWS CLI profile `n11817143-a2` is configured with sufficient permissions.
+
+1. **Allocate an Elastic IP in the VPC**
+
+   ```bash
+   aws ec2 allocate-address \
+     --domain vpc \
+     --region ap-southeast-2 \
+     --profile n11817143-a2
+   ```
+
+   Capture the `AllocationId` and the new Elastic IP address from the output.
+
+2. **Associate the Elastic IP with the EC2 instance**
+
+   ```bash
+   aws ec2 associate-address \
+     --instance-id i-0aaedfc6a70038409 \
+     --allocation-id <alloc-id> \
+     --region ap-southeast-2 \
+     --profile n11817143-a2
+   ```
+
+   Replace `<alloc-id>` with the `AllocationId` returned in step 1.
+
+3. **Update Route53 with the new Elastic IP**
+
+   ```bash
+   aws route53 change-resource-record-sets \
+     --hosted-zone-id Z02680423BHWEVRU2JZDQ \
+     --profile n11817143-a2 \
+     --change-batch '{
+       "Changes": [{
+         "Action": "UPSERT",
+         "ResourceRecordSet": {
+           "Name": "n11817143-videoapp.cab432.com",
+           "Type": "A",
+           "TTL": 60,
+           "ResourceRecords": [{"Value": "<EIP>"}]
+         }
+       }]
+     }'
+   ```
+
+   Replace `<EIP>` with the Elastic IP address allocated in step 1. DNS propagation typically completes within a few minutes, but allow up to an hour.
+
 ### 3. S3
 
 - **Bucket**: `n11817143-a2`
@@ -154,7 +202,7 @@ Namespaced under `/n11817143/app/`:
   - Video list: fetch metadata from API, show thumbnails + play via signed URL.
   - Admin dashboard: delete videos.
 - `.env` for frontend:
-  - `VITE_API_URL=https://n11817143-videoapp.cab432.com/api`
+- `VITE_API_URL=https://n11817143-videoapp.cab432.com/api` (optional in production; the frontend now falls back to `${window.location.origin}/api` when the variable is not provided)
   - Cognito settings are fetched at runtime from the backend via `/config`.
 - Dockerfile for frontend.
 
@@ -240,7 +288,7 @@ it means the SSO `clientId` being sent to AWS contains characters that do not ma
 
 ### Route53 host name is not used by the app
 
-The frontend reads `VITE_API_URL` from `.env` (see `client/.env.example`) and uses that value for every API request. At runtime it also fetches `/config` from the backend, which returns the Cognito Hosted UI domain that was loaded from Parameter Store (`/n11817143/app/domainName`). If either of these values points at the raw EC2 hostname instead of `https://n11817143-videoapp.cab432.com`, the browser will keep using the EC2 endpoint. Make sure:
+The frontend reads `VITE_API_URL` from `.env` (see `client/.env.example`) and uses that value for every API request. If the variable is not provided (for example when the site is deployed directly behind the reverse proxy), the code falls back to `${window.location.origin}/api`. At runtime it also fetches `/config` from the backend, which returns the Cognito Hosted UI domain that was loaded from Parameter Store (`/n11817143/app/domainName`). If either of these values points at the raw EC2 hostname instead of `https://n11817143-videoapp.cab432.com`, the browser will keep using the EC2 endpoint. Make sure:
 
 1. The `.env` file in the frontend container/environment sets `VITE_API_URL=https://n11817143-videoapp.cab432.com/api`.
 2. The Parameter Store key `/n11817143/app/domainName` is set to the same Route53 host.

@@ -1,3 +1,5 @@
+import { getApiUrl } from "./utils/apiUrl.js";
+
 let cachedConfig = null;
 let configPromise = null;
 
@@ -7,16 +9,20 @@ function normaliseDomain(domain) {
 }
 
 async function requestConfigFromApi() {
-  const apiUrl = import.meta.env.VITE_API_URL;
-  if (!apiUrl) {
-    throw new Error("VITE_API_URL is not defined. Update your frontend environment configuration.");
-  }
+  const apiUrl = getApiUrl();
 
-  const response = await fetch(`${apiUrl}/config`, {
-    headers: {
-      "cache-control": "no-cache"
-    }
-  });
+  let response;
+  try {
+    response = await fetch(`${apiUrl}/config`, {
+      headers: {
+        "cache-control": "no-cache"
+      }
+    });
+  } catch (error) {
+    throw new Error(
+      `Failed to contact backend at ${apiUrl}/config. ${error?.message || "Network request failed."}`
+    );
+  }
   if (!response.ok) {
     const message = await response.text();
     throw new Error(message || "Failed to load AWS configuration from API.");

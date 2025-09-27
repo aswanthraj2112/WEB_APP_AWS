@@ -20,18 +20,30 @@ const PARAMETER_NAMES = [
 
 let cachedConfig = null;
 
+const PARAMETER_BATCH_SIZE = 10;
+
 async function fetchParameters() {
   const ssm = new SSMClient({ region: REGION });
-  const response = await ssm.send(
-    new GetParametersCommand({ Names: PARAMETER_NAMES, WithDecryption: true })
-  );
 
   const values = {};
-  (response.Parameters || []).forEach((param) => {
-    values[param.Name] = param.Value;
-  });
+  const invalidParameters = new Set();
 
-  const missing = PARAMETER_NAMES.filter((name) => !values[name]);
+  for (let i = 0; i < PARAMETER_NAMES.length; i += PARAMETER_BATCH_SIZE) {
+    const batch = PARAMETER_NAMES.slice(i, i + PARAMETER_BATCH_SIZE);
+    const response = await ssm.send(
+      new GetParametersCommand({ Names: batch, WithDecryption: true })
+    );
+
+    (response.Parameters || []).forEach((param) => {
+      values[param.Name] = param.Value;
+    });
+
+    (response.InvalidParameters || []).forEach((name) => invalidParameters.add(name));
+  }
+
+  const missing = PARAMETER_NAMES.filter(
+    (name) => !values[name] || invalidParameters.has(name)
+  );
   if (missing.length) {
     throw new Error(`Missing SSM parameters: ${missing.join(", ")}`);
   }

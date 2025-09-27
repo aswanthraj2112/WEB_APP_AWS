@@ -143,6 +143,27 @@ The Vite dev server runs on `http://localhost:5173` and proxies API calls to the
 
 The proxy container publishes port 80 and serves the React SPA while forwarding `/api/*` to the backend service.
 
+## Troubleshooting
+
+### AWS SSO login validation error
+
+If `aws sso login --profile n11817143-a2` fails with an error similar to:
+
+```
+1 validation error detected: Value 'ap-southeast-2_ABC123clientid' at 'clientId' failed to satisfy constraint: Member must satisfy regular expression pattern: [\w+]+
+```
+
+it means the SSO `clientId` being sent to AWS contains characters that do not match the allowed pattern. The AWS CLI automatically stores the correct client registration (an alphanumeric/underscore ID) under `~/.aws/sso/cache/`. Re-run `aws configure sso` and select the existing `n11817143-a2` profile so that the CLI refreshes the cached registration instead of reusing a manually edited value with hyphens. After refreshing the profile, retry `aws sso login`.
+
+### Route53 host name is not used by the app
+
+The frontend reads `VITE_API_URL` from `.env` (see `client/.env.example`) and uses that value for every API request. At runtime it also fetches `/config` from the backend, which returns the Cognito Hosted UI domain that was loaded from Parameter Store (`/n11817143/app/domainName`). If either of these values points at the raw EC2 hostname instead of `https://n11817143-videoapp.cab432.com`, the browser will keep using the EC2 endpoint. Make sure:
+
+1. The `.env` file in the frontend container/environment sets `VITE_API_URL=https://n11817143-videoapp.cab432.com/api`.
+2. The Parameter Store key `/n11817143/app/domainName` is set to the same Route53 host.
+
+With both settings in place, the SPA will call the API via the Route53 alias and Amplify will initialise Cognito using the custom domain reported by `/config`.
+
 ## Requirements
 
 - Generate complete backend code (`server/`) and frontend code (`client/`).

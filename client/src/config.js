@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE_PATH = "/api";
+const DEFAULT_API_BASE_PATH = "https://n11817143-videoapp.cab432.com/api";
 
 function normaliseBaseUrl(url) {
   if (!url) return "";
@@ -11,7 +11,9 @@ export function getApiBaseUrl() {
   const baseUrl = trimmed || DEFAULT_API_BASE_PATH;
   const normalised = normaliseBaseUrl(baseUrl);
   if (!normalised) {
-    throw new Error("API base URL could not be determined. Set VITE_API_URL or configure a proxy at '/api'.");
+    throw new Error(
+      "API base URL could not be determined. Set VITE_API_URL to https://n11817143-videoapp.cab432.com/api or your custom endpoint."
+    );
   }
   return normalised;
 }

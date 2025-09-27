@@ -27,6 +27,7 @@ app.get("/config", async (_req, res, next) => {
       region: config.region,
       userPoolId: config.cognitoUserPoolId,
       userPoolClientId: config.cognitoClientId,
+      userPoolClientSecret: config.cognitoClientSecret,
       domain: config.domainName
     });
   } catch (error) {

@@ -75,7 +75,8 @@ async function fetchSecrets() {
 
   const parsed = JSON.parse(secretValue.SecretString);
   return {
-    jwtSecret: parsed.JWT_SECRET
+    jwtSecret: parsed.JWT_SECRET,
+    cognitoClientSecret: parsed.COGNITO_CLIENT_SECRET
   };
 }
 

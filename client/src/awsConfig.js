@@ -29,7 +29,7 @@ async function requestConfigFromApi() {
   }
 
   const data = await response.json();
-  const { region, userPoolId, userPoolClientId, domain } = data;
+  const { region, userPoolId, userPoolClientId, userPoolClientSecret, domain } = data;
 
   if (!region || !userPoolId || !userPoolClientId) {
     throw new Error("Incomplete Cognito configuration received from API.");
@@ -41,6 +41,10 @@ async function requestConfigFromApi() {
     userPoolWebClientId: userPoolClientId,
     mandatorySignIn: true
   };
+
+  if (userPoolClientSecret) {
+    authConfig.clientSecret = userPoolClientSecret;
+  }
 
   const normalisedDomain = normaliseDomain(domain);
   if (normalisedDomain) {

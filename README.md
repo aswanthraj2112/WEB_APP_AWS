@@ -1,7 +1,8 @@
 # WEB_APP_AWS
 
 Build a full-stack Cloud-Native Video Web Application for deployment on AWS, with the following specifications:
-
+rm -rf WEB_APP_AWS
+git clone https://github.com/aswanthraj2112/WEB_APP_AWS.git
 ## General
 - The application is a video management platform where authenticated users can upload, view, and manage videos.
 - Backend: Node.js + Express, containerized with Docker.

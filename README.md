@@ -1,48 +1,130 @@
 # WEB_APP_AWS
 
-Build a full-stack Cloud-Native Video Web Application for deployment on AWS, with the following specifications:
-rm -rf WEB_APP_AWS
-git clone https://github.com/aswanthraj2112/WEB_APP_AWS.git
+Cloud-native video management platform deployed on AWS for CAB432 Assignment 2. The solution comprises a Dockerised React frontend, Express backend, and nginx reverse proxy that integrate with AWS managed services for storage, authentication, and configuration.
+
+---
+
+## Final AWS Configuration & Fix Report
+
+- **Project**: CAB432 Assignment 2 — Cloud-Native Video Web App  
+- **Student ID**: n11817143  
+- **AWS Account**: `901444280953`  
+- **Region**: `ap-southeast-2`
+
+### 1. EC2
+
+- **Instance ID**: `i-0aaedfc6a70038409`
+- **Instance Role**: `CAB432-Instance-Role` (limited IAM)
+- **Public IP**: `3.107.100.58`
+- **Public DNS**: `ec2-3-107-100-58.ap-southeast-2.compute.amazonaws.com`
+- **Status**: ✅ Running
+- **Fix**: Backend services must bind only to security-group-approved ports (8080 or 5000). Do **not** bind Express to port 4000.
+
+### 2. Route53
+
+- **Hosted Zone**: `Z02680423BHWEVRU2JZDQ` (`cab432.com`)
+- **Subdomain**: `n11817143-videoapp.cab432.com`
+- **Record Type**: CNAME → `ec2-3-107-100-58.ap-southeast-2.compute.amazonaws.com`
+- **DNS Sync**: ✅ Managed by `/usr/local/bin/check-and-fix-dns.sh`
+- **Fix**: DNS mismatches resolved by switching to a CNAME that targets the EC2 public DNS. Auto-heal script with cron enforces the mapping hourly.
+
+### 3. S3
+
+- **Bucket**: `n11817143-a2`
+- **Prefixes**:
+  - `raw-videos/`
+  - `transcoded-videos/`
+  - `thumbnails/`
+- **Status**: ✅ Verified with smoke tests (upload + presigned URL).
+
+### 4. Security Group (`CAB432SG`)
+
+Inbound rules (fixed by QUT, cannot be altered):
+
+- ✅ 80 (HTTP, open)
+- ✅ 443 (HTTPS, open)
+- ✅ 8080 (open)
+- ✅ 3000–3010 (open)
+- ✅ 5000 (open)
+- ✅ 5432 (open)
+- ✅ 22 (restricted to QUT/private networks)
+
+**Fixes & Guidance**:
+
+- Frontend (React + nginx) → run on port 80.  
+- Backend (Express) → bind to port 8080 (instead of 4000).  
+- HTTPS (443) reserved for future TLS upgrade.  
+- Only use the approved ports above.
+
+### 5. DynamoDB
+
+- **Table**: `VideosTable`
+- **Key schema**:
+  - Partition: `qut-username`
+  - Sort: `id`
+- **Index**: `OwnerIndex`
+- **Status**: ✅ Put/Get smoke tested.
+
+### 6. Cognito
+
+- **User Pool ID**: retrieved from Parameter Store (`/n11817143/app/cognitoUserPoolId`)
+- **App Client ID**: retrieved from Parameter Store (`/n11817143/app/cognitoClientId`)
+- **Groups**: `users`, `admins`
+- **Fix**: IAM policy prevents `cognito-idp:Describe*` calls—always read User Pool and Client IDs from Parameter Store.
+
+### 7. Secrets Manager
+
+- **Secret name**: `n11817143-a2-secret`
+- **Payload**: `JWT_SECRET = cab432_A2_super_secret_key_11817143`
+- **Status**: ✅ Accessible from the EC2 role.
+
+### 8. Parameter Store
+
+Namespaced under `/n11817143/app/`:
+
+- `/cognitoClientId`
+- `/cognitoUserPoolId`
+- `/domainName`
+- `/dynamoTable`
+- `/dynamoOwnerIndex`
+- `/maxUploadSizeMb` → `512`
+- `/preSignedUrlTTL` → `600`
+- `/s3Bucket` → `n11817143-a2`
+- `/s3_raw_prefix` → `s3://n11817143-a2/raw/`
+- `/s3_thumbnail_prefix` → `s3://n11817143-a2/thumbnails/`
+- `/s3_transcoded_prefix` → `s3://n11817143-a2/transcoded/`
+- **Status**: ✅ Verified retrievable.
+
+### 9. ECR
+
+- **Repository**: `901444280953.dkr.ecr.ap-southeast-2.amazonaws.com/n11817143-a2`
+- **Status**: ✅ Image pulls tested.
+
+### 10. Health & Automation
+
+- Smoke tests for S3, DynamoDB, and presigned URLs: ✅
+- DNS auto-heal script: `/usr/local/bin/check-and-fix-dns.sh` (cron, hourly). Logs at `/home/ubuntu/check-dns.log`.
+- Frontend/Backend containers run behind nginx proxy on ports 80 and 8080.
+
+### Final Deployment Mapping
+
+- **Frontend (React)**: `http://n11817143-videoapp.cab432.com` served on port 80 via nginx.  
+- **Backend (Express)**: `http://n11817143-videoapp.cab432.com/api` proxied to port 8080.  
+- **AWS Services**:
+  - S3 → video storage
+  - DynamoDB → metadata
+  - Cognito → authentication (identifiers from Parameter Store)
+  - Secrets Manager → JWT secret
+  - Parameter Store → configuration values
+
+---
+
 ## General
 - The application is a video management platform where authenticated users can upload, view, and manage videos.
 - Backend: Node.js + Express, containerized with Docker.
 - Frontend: React (Vite), with Cognito authentication and API integration.
 - All persistent data must be externalized into AWS services (stateless app).
 - Use AWS SDK v3.
-
-## AWS Cloud Configuration
-- Region: ap-southeast-2
-- Account ID: 901444280953
-- EC2 Instance: i-0aaedf6a70038409, DNS ec2-16-176-178-164.ap-southeast-2.compute.amazonaws.com
-- Route53 domain: n11817143-videoapp.cab432.com → EC2 DNS
-- ECR repository: 901444280953.dkr.ecr.ap-southeast-2.amazonaws.com/n11817143-a2
-- S3 bucket: n11817143-a2
-  - Prefixes:
-    - raw-videos/
-    - transcoded-videos/
-    - thumbnails/
-- DynamoDB:
-  - Table: VideosTable
-  - Index: OwnerIndex
-- Cognito:
-  - User Pool ID: from Parameter Store `/n11817143/app/cognitoUserPoolId`
-  - Client ID: from Parameter Store `/n11817143/app/cognitoClientId`
-  - Groups: users, admins
-- Secrets Manager:
-  - Secret name: n11817143-a2-secret
-  - Key/Value: JWT_SECRET = cab432_A2_super_secret_key_11817143
-- Parameter Store keys:
-  - /n11817143/app/cognitoClientId
-  - /n11817143/app/cognitoUserPoolId
-  - /n11817143/app/domainName
-  - /n11817143/app/dynamoTable
-  - /n11817143/app/dynamoOwnerIndex
-  - /n11817143/app/maxUploadSizeMb
-  - /n11817143/app/preSignedUrlTTL
-  - /n11817143/app/s3Bucket
-  - /n11817143/app/s3_raw_prefix
-  - /n11817143/app/s3_thumbnail_prefix
-  - /n11817143/app/s3_transcoded_prefix
 
 ## Backend (server)
 - Use Express with routes for:
@@ -72,7 +154,7 @@ git clone https://github.com/aswanthraj2112/WEB_APP_AWS.git
   - Video list: fetch metadata from API, show thumbnails + play via signed URL.
   - Admin dashboard: delete videos.
 - `.env` for frontend:
-  - VITE_API_URL=https://n11817143-videoapp.cab432.com/api
+  - `VITE_API_URL=https://n11817143-videoapp.cab432.com/api`
   - Cognito settings are fetched at runtime from the backend via `/config`.
 - Dockerfile for frontend.
 
@@ -107,7 +189,7 @@ npm install
 npm run dev
 ```
 
-Set AWS credentials in your environment so the API can fetch Parameter Store and Secrets Manager values. The service listens on `http://localhost:4000`.
+Set AWS credentials in your environment so the API can fetch Parameter Store and Secrets Manager values. The service listens on `http://localhost:8080` (matching the production binding).
 
 ### Frontend
 
@@ -135,14 +217,14 @@ The Vite dev server runs on `http://localhost:5173` and proxies API calls to the
    docker push 901444280953.dkr.ecr.ap-southeast-2.amazonaws.com/n11817143-a2-frontend:latest
    ```
 
-3. On the EC2 instance (`ec2-16-176-178-164.ap-southeast-2.compute.amazonaws.com`):
+3. On the EC2 instance (`ec2-3-107-100-58.ap-southeast-2.compute.amazonaws.com`):
 
    ```bash
    docker-compose pull
    docker-compose up -d
    ```
 
-The proxy container publishes port 80 and serves the React SPA while forwarding `/api/*` to the backend service.
+The proxy container publishes port 80 and serves the React SPA while forwarding `/api/*` to the backend service on port 8080.
 
 ## Troubleshooting
 
@@ -173,4 +255,3 @@ With both settings in place, the SPA will call the API via the Route53 alias and
 - Include `config.js` that loads all AWS Parameter Store + Secrets Manager values.
 - Ensure role-based access control with Cognito groups (users, admins).
 - Make the system production-ready for Assignment 2 marking.
-

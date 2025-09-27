@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from "./config";
+
 let cachedConfig = null;
 let configPromise = null;
 
@@ -7,10 +9,7 @@ function normaliseDomain(domain) {
 }
 
 async function requestConfigFromApi() {
-  const apiUrl = import.meta.env.VITE_API_URL;
-  if (!apiUrl) {
-    throw new Error("VITE_API_URL is not defined. Update your frontend environment configuration.");
-  }
+  const apiUrl = getApiBaseUrl();
 
   const response = await fetch(`${apiUrl}/config`, {
     headers: {

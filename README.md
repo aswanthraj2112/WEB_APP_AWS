@@ -154,7 +154,7 @@ Namespaced under `/n11817143/app/`:
   - Video list: fetch metadata from API, show thumbnails + play via signed URL.
   - Admin dashboard: delete videos.
 - `.env` for frontend:
-  - `VITE_API_URL=https://n11817143-videoapp.cab432.com/api`
+  - `VITE_API_URL=https://n11817143-videoapp.cab432.com/api` (optional; falls back to `/api` when the frontend and backend share a host)
   - Cognito settings are fetched at runtime from the backend via `/config`.
 - Dockerfile for frontend.
 

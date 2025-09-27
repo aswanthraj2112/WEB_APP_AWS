@@ -72,9 +72,7 @@ Build a full-stack Cloud-Native Video Web Application for deployment on AWS, wit
   - Admin dashboard: delete videos.
 - `.env` for frontend:
   - VITE_API_URL=https://n11817143-videoapp.cab432.com/api
-  - VITE_AWS_REGION=ap-southeast-2
-  - VITE_COGNITO_USER_POOL_ID=use value from Parameter Store
-  - VITE_COGNITO_CLIENT_ID=use value from Parameter Store
+  - Cognito settings are fetched at runtime from the backend via `/config`.
 - Dockerfile for frontend.
 
 ## Deployment

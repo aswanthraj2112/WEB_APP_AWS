@@ -5,7 +5,7 @@ import { Toast } from "../components/Toast.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 export function UploadPage() {
-  const { tokens } = useAuth();
+  const { tokens, refreshTokens } = useAuth();
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState("");
@@ -21,7 +21,14 @@ export function UploadPage() {
 
     try {
       setStatus("Requesting upload URL...");
-      const { uploadUrl, videoId } = await createVideo({ title, file, tokens });
+      if (!tokens) {
+        throw new Error("You must be signed in to upload a video.");
+      }
+      const { uploadUrl, videoId } = await createVideo({
+        title,
+        file,
+        tokens: refreshTokens
+      });
       setStatus("Uploading to S3...");
       await uploadToS3(uploadUrl, file);
       setStatus("Upload completed. Transcoding will begin shortly.");

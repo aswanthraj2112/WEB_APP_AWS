@@ -4,15 +4,19 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { Toast } from "../components/Toast.jsx";
 
 export function VideosPage() {
-  const { tokens } = useAuth();
+  const { tokens, refreshTokens } = useAuth();
   const [videos, setVideos] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
+      if (!tokens) {
+        setLoading(false);
+        return;
+      }
       try {
-        const data = await listVideos(tokens);
+        const data = await listVideos(refreshTokens);
         setVideos(data.items || []);
       } catch (err) {
         console.error(err);
@@ -23,7 +27,7 @@ export function VideosPage() {
     };
 
     load();
-  }, [tokens]);
+  }, [tokens, refreshTokens]);
 
   if (loading) {
     return (

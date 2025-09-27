@@ -2,7 +2,7 @@ import http from "http";
 import app from "./app.js";
 import { loadConfig, getConfig } from "./config.js";
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 8080;
 
 async function start() {
   try {

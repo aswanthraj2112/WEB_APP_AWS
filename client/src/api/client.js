@@ -9,6 +9,13 @@ async function resolveTokens(tokensOrProvider) {
   return tokensOrProvider;
 }
 
+async function resolveTokens(tokensOrProvider) {
+  if (typeof tokensOrProvider === "function") {
+    return tokensOrProvider();
+  }
+  return tokensOrProvider;
+}
+
 function buildHeaders(tokens, extra = {}) {
   const headers = {
     "Content-Type": "application/json",
